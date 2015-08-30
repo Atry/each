@@ -29,13 +29,98 @@ import scalaz.syntax.{FoldableOps, TraverseOps}
 
 object Monadic {
 
-  final class MonadicLoop[FA](private[Monadic] val underlying: FA)
+  //  object WithoutBuiltInMethodsTag {
 
-  implicit final class ToMonadicLoopOps[FA](underlying: FA) {
+  implicit def withoutBuiltInMethodsBind: Bind[({
+    type G[X] = {type Tag = com.thoughtworks.each.Monadic.WithoutBuiltInMethodsTag;
+      type Self = scalaz.EphemeralStream[X]
+    }
+  })#G] = ???
 
-    def monadicLoop = new MonadicLoop(underlying)
+  //  implicit def withoutBuiltInMethodsTagMonad[M[_]](implicit unapply: Monad[M]) = {
+  //    unapply.asInstanceOf[Monad[({type G[A] = WithoutBuiltInMethods[M, A]})#G]]
+  //  }
+  //  implicit def withoutBuiltInMethodsTagMonadUnapply[FA](implicit unapply: Unapply[Monad, FA]) = {
+  //    unapply.TC.asInstanceOf[Monad[({type G[A] = WithoutBuiltInMethods[unapply.M, A]})#G]]
+  //  }
+  //
+  //  implicit def withoutBuiltInMethodsTagMonadPlusUnapply[FA](implicit unapply: Unapply[MonadPlus, FA]) = {
+  //    unapply.TC.asInstanceOf[MonadPlus[({type G[A] = WithoutBuiltInMethods[unapply.M, A]})#G]]
+  //  }
 
+  implicit def withoutBuiltInMethodsTagFoldable[M[_] : Foldable] = {
+    implicitly[Foldable[M]].asInstanceOf[Foldable[({type G[A] = WithoutBuiltInMethods[M, A]})#G]]
   }
+
+  //  implicit def withoutBuiltInMethodsTagFoldableI[F0[_]]
+  //  //  (implicit foldable: Foldable[F0])
+  //  : Foldable[({type M[X] = F0[X] @@ WithoutBuiltInMethodsTag})#M] = {
+  //    ??? //foldable.asInstanceOf[Foldable[({type G[A] = WithoutBuiltInMethods[F0, A]})#G]]
+  //  }
+
+
+  implicit def unapplyTaggedMA3[TC[_[_]], M1[_], A0]
+  (implicit TC0: TC[M1])
+  : scalaz.Unapply[TC, {type Tag = WithoutBuiltInMethodsTag; type Self = M1[A0]}] {
+    type M[X] = WithoutBuiltInMethods[M1, X]
+    type A = A0
+  } = new scalaz.Unapply[TC, WithoutBuiltInMethods[M1, A0]] {
+    type M[X] = WithoutBuiltInMethods[M1, X]
+    type A = A0
+
+    def TC = TC0.asInstanceOf[TC[M]]
+
+    def leibniz = Leibniz.refl
+  }
+
+  implicit def unapplyTaggedMA[TC[_[_]], M1[_], A0]
+  (implicit TC0: TC[M1])
+  : scalaz.Unapply[TC, M1[A0] @@ WithoutBuiltInMethodsTag] {
+    type M[X] = WithoutBuiltInMethods[M1, X]
+    type A = A0
+  } = new scalaz.Unapply[TC, WithoutBuiltInMethods[M1, A0]] {
+    type M[X] = WithoutBuiltInMethods[M1, X]
+    type A = A0
+
+    def TC = TC0.asInstanceOf[TC[M]]
+
+    def leibniz = Leibniz.refl
+  }
+
+  implicit def unapplyTaggedMA2[TC[_[_]], M1[_], A0]
+  (implicit TC0: TC[M1])
+  : scalaz.Unapply[TC, WithoutBuiltInMethods[M1, A0]] {
+    type M[X] = WithoutBuiltInMethods[M1, X]
+    type A = A0
+  } = new scalaz.Unapply[TC, WithoutBuiltInMethods[M1, A0]] {
+    type M[X] = WithoutBuiltInMethods[M1, X]
+    type A = A0
+
+    def TC = TC0.asInstanceOf[TC[M]]
+
+    def leibniz = Leibniz.refl
+  }
+
+  //
+  //  implicit def withoutBuiltInMethodsTagTraverseUnapply[FA](implicit unapply: Unapply[Traverse, FA]) = {
+  //    unapply.TC.asInstanceOf[Traverse[({type G[A] = WithoutBuiltInMethods[unapply.M, A]})#G]]
+  //  }
+
+  //  }
+
+  //  implicit def unapplyMFA[TC[_[_]], M0[_[_], _], F0[_], A0](implicit TC0: TC[({type M[A] = M0[F0, A]})#M]):
+  //  Unapply[TC, M0[F0,?], A0]] {
+  //    type M[X] = M0[F0,?], X]
+  //    type A = A0
+  //  } = {
+  //
+  //  }
+  //Monad[({type G[A] = WithoutBuiltInMethods[unapply.M, A]})#G] = ???
+
+  trait WithoutBuiltInMethodsTag
+
+  type WithoutBuiltInMethods[F[_], A] = F[A] @@ WithoutBuiltInMethodsTag
+  val WithoutBuiltInMethods = Tag.of[WithoutBuiltInMethodsTag]
 
   final class FoldableComprehensionOps[F[_], A](private[Monadic] val underlying: F[A])(implicit F: Foldable[F]) {
 
@@ -65,38 +150,75 @@ object Monadic {
 
 
   final class MonadPlusComprehensionOps[F[_], A](private[Monadic] val underlying: F[A])(implicit private[Monadic] val F: MonadPlus[F]) {
-    def withFilter(p: A => Boolean): MonadicLoop[F[A]] = {
-      new MonadicLoop(F.filter(underlying)(p))
+    def withFilter(p: A => Boolean): F[A] = {
+      F.filter(underlying)(p)
     }
   }
 
-
-  implicit def monadPlusComprehensionOpsToFoldableComprehensionOpsTo[F[_], A](v: MonadPlusComprehensionOps[F, A])(implicit F: Foldable[F]) = {
-    new FoldableComprehensionOps(v.underlying)
-  }
-
-  implicit def monadPlusComprehensionOpsToTraverseComprehensionOpsTo[F[_], A](v: MonadPlusComprehensionOps[F, A])(implicit F: Traverse[F]) = {
-    new TraverseComprehensionOps(v.underlying)
-  }
-
-  implicit def foldableComprehensionOpsToTraverseComprehensionOpsTo[F[_], A](v: FoldableComprehensionOps[F, A])(implicit F: Traverse[F]) = {
-    new TraverseComprehensionOps(v.underlying)
-  }
-
-
-  implicit def foldableComprehensionOpsToMonadPlusComprehensionOps[F[_], A](v: FoldableComprehensionOps[F, A])(implicit F: MonadPlus[F]) = {
-    new MonadPlusComprehensionOps(v.underlying)
-  }
-
-  implicit def traverseComprehensionOpsToFoldableComprehensionOps[F[_], A](v: TraverseComprehensionOps[F, A]) = {
-    import v._
-    new FoldableComprehensionOps(underlying)
-  }
-
-
-  implicit def traverseComprehensionOpsToMonadPlusComprehensionOps[F[_], A](v: TraverseComprehensionOps[F, A])(implicit F: MonadPlus[F]) = {
-    new MonadPlusComprehensionOps(v.underlying)
-  }
+  //
+  //  implicit def monadPlusComprehensionOpsToFoldableComprehensionOpsTo[F[_], A](v: MonadPlusComprehensionOps[F, A])(implicit F: Foldable[F]) = {
+  //    new FoldableComprehensionOps(v.underlying)
+  //  }
+  //
+  //  implicit def monadPlusComprehensionOpsToTraverseComprehensionOpsTo[F[_], A](v: MonadPlusComprehensionOps[F, A])(implicit F: Traverse[F]) = {
+  //    new TraverseComprehensionOps(v.underlying)
+  //  }
+  //
+  //  implicit def foldableComprehensionOpsToTraverseComprehensionOpsTo[F[_], A](v: FoldableComprehensionOps[F, A])(implicit F: Traverse[F]) = {
+  //    new TraverseComprehensionOps(v.underlying)
+  //  }
+  //
+  //
+  //  implicit def foldableComprehensionOpsToMonadPlusComprehensionOps[F[_], A](v: FoldableComprehensionOps[F, A])(implicit F: MonadPlus[F]) = {
+  //    new MonadPlusComprehensionOps(v.underlying)
+  //  }
+  //
+  //  implicit def traverseComprehensionOpsToFoldableComprehensionOps[F[_], A](v: TraverseComprehensionOps[F, A]) = {
+  //    import v._
+  //    new FoldableComprehensionOps(underlying)
+  //  }
+  //
+  //
+  //  implicit def traverseComprehensionOpsToMonadPlusComprehensionOps[F[_], A](v: TraverseComprehensionOps[F, A])(implicit F: MonadPlus[F]) = {
+  //    new MonadPlusComprehensionOps(v.underlying)
+  //  }
+  //
+  //  /**
+  //   * An implicit view to enable `for` `yield` comprehension for a monadic value.
+  //   *
+  //   * @param v the monadic value.
+  //   * @param F0 a helper to infer types.
+  //   * @tparam FA type of the monadic value.
+  //   * @return the temporary wrapper that contains the `each` method.
+  //   */
+  //  implicit def monadicLoopToFoldableComprehensionOps[FA](v: MonadicLoop[FA])(implicit F0: Unapply[Foldable, FA]) = {
+  //    new FoldableComprehensionOps[F0.M, F0.A](F0(v.underlying))(F0.TC)
+  //  }
+  //
+  //  /**
+  //   * An implicit view to enable `for` `yield` comprehension for a monadic value.
+  //   *
+  //   * @param v the monadic value.
+  //   * @param F0 a helper to infer types.
+  //   * @tparam FA type of the monadic value.
+  //   * @return the temporary wrapper that contains the `each` method.
+  //   */
+  //  implicit def monadicLoopToTraverseComprehensionOpsUnapply[FA](v: MonadicLoop[FA])(implicit F0: Unapply[Traverse, FA]) = {
+  //    new TraverseComprehensionOps[F0.M, F0.A](F0(v.underlying))(F0.TC)
+  //  }
+  //
+  //
+  //  /**
+  //   * An implicit view to enable `for` `yield` comprehension for a monadic value.
+  //   *
+  //   * @param v the monadic value.
+  //   * @param F0 a helper to infer types.
+  //   * @tparam FA type of the monadic value.
+  //   * @return the temporary wrapper that contains the `each` method.
+  //   */
+  //  implicit def monadicLoopToMonadPlusComprehensionOpsUnapply[FA](v: MonadicLoop[FA])(implicit F0: Unapply[MonadPlus, FA]) = {
+  //    new MonadPlusComprehensionOps[F0.M, F0.A](F0(v.underlying))(F0.TC)
+  //  }
 
   /**
    * An implicit view to enable `for` `yield` comprehension for a monadic value.
@@ -106,44 +228,7 @@ object Monadic {
    * @tparam FA type of the monadic value.
    * @return the temporary wrapper that contains the `each` method.
    */
-  implicit def monadicLoopToFoldableComprehensionOps[FA](v: MonadicLoop[FA])(implicit F0: Unapply[Foldable, FA]) = {
-    new FoldableComprehensionOps[F0.M, F0.A](F0(v.underlying))(F0.TC)
-  }
-
-  /**
-   * An implicit view to enable `for` `yield` comprehension for a monadic value.
-   *
-   * @param v the monadic value.
-   * @param F0 a helper to infer types.
-   * @tparam FA type of the monadic value.
-   * @return the temporary wrapper that contains the `each` method.
-   */
-  implicit def monadicLoopToTraverseComprehensionOpsUnapply[FA](v: MonadicLoop[FA])(implicit F0: Unapply[Traverse, FA]) = {
-    new TraverseComprehensionOps[F0.M, F0.A](F0(v.underlying))(F0.TC)
-  }
-
-
-  /**
-   * An implicit view to enable `for` `yield` comprehension for a monadic value.
-   *
-   * @param v the monadic value.
-   * @param F0 a helper to infer types.
-   * @tparam FA type of the monadic value.
-   * @return the temporary wrapper that contains the `each` method.
-   */
-  implicit def monadicLoopToMonadPlusComprehensionOpsUnapply[FA](v: MonadicLoop[FA])(implicit F0: Unapply[MonadPlus, FA]) = {
-    new MonadPlusComprehensionOps[F0.M, F0.A](F0(v.underlying))(F0.TC)
-  }
-
-  /**
-   * An implicit view to enable `for` `yield` comprehension for a monadic value.
-   *
-   * @param v the monadic value.
-   * @param F0 a helper to infer types.
-   * @tparam FA type of the monadic value.
-   * @return the temporary wrapper that contains the `each` method.
-   */
-  implicit def toFoldableComprehensionOps[FA](v: FA)(implicit F0: Unapply[Foldable, FA]) = {
+  implicit def toFoldableComprehensionOpsUpapply[FA](v: FA)(implicit F0: Unapply[Foldable, FA]) = {
     new FoldableComprehensionOps[F0.M, F0.A](F0(v))(F0.TC)
   }
 
